@@ -1,0 +1,172 @@
+/* Importing Google font - Poppins */
+@import url("https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap");
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: "Poppins", sans-serif;
+}
+
+.owner-name {
+    font-size: 1.5rem; /* Adjust font size as needed */
+    font-weight: 600; /* Medium weight for emphasis */
+    text-align: center; /* Center align the text */
+    margin-bottom: 20px; /* Space between the name and the next section */
+    text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.7); /* Subtle shadow for depth */
+}
+
+body {
+    background: linear-gradient(135deg, #000000, #4B0082); /* Black to Navy gradient */
+    color: #ffffff;
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    justify-content: center;
+}
+
+.image-generator {
+    text-align: center;
+    margin-bottom: 20px;
+    padding: 20px; /* Add some padding */
+}
+
+.image-generator h1 {
+    font-size: 2.5rem;
+    font-weight: 700;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5); /* Add shadow for depth */
+}
+
+.image-generator p {
+    margin-top: 10px;
+    font-size: 1.2rem; /* Slightly smaller for better alignment */
+    line-height: 1.5; /* Improve readability */
+}
+
+/* Centered Image Section */
+.image-gallery {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    margin: 20px 0;
+}
+
+.image-gallery .img-card {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #f2f2f2;
+    border-radius: 8px;
+    overflow: hidden;
+    aspect-ratio: 1 / 1;
+    width: 250px; /* Normal size for output image */
+    height: 250px;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2); /* Add shadow for depth */
+}
+
+.image-gallery .img-card img {
+    height: 100%;
+    width: 100%;
+    object-fit: cover;
+}
+
+/* Download Icon Button */
+.download-icon {
+    margin-top: 10px;
+    background: #000; /* Black background */
+    border-radius: 50%;
+    padding: 8px; /* Add some padding */
+    display: none; /* Initially hidden */
+    align-items: center;
+    justify-content: center;
+}
+
+.download-icon img {
+    width: 20px; /* Icon size */
+    height: 20px;
+    filter: invert(100%); /* White icon */
+}
+
+/* Input Box Section */
+.input-section {
+    display: flex;
+    justify-content: center;
+    padding: 20px;
+}
+
+.generate-form {
+    display: flex;
+    width: 100%;
+    max-width: 600px;
+    background: #fff; /* White background */
+    align-items: center;
+    border-radius: 30px;
+    overflow: hidden;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3); /* Enhanced fluffy effect */
+}
+
+.generate-form .prompt-input {
+    width: 100%;
+    height: 56px;
+    outline: none;
+    padding: 0 17px;
+    border: none;
+    font-size: 1rem;
+    background-color: #fff;  /* Full white input */
+    color: #000; /* Black text */
+    border-radius: 30px 0 0 30px; /* Rounded corners */
+}
+
+/* Button Styles */
+.generate-form .controls {
+    display: flex;
+}
+
+.generate-form .generate-btn {
+    font-size: 1rem;
+    outline: none;
+    border: none; /* No border to avoid any white lines */
+    font-weight: 500;
+    color: #fff; /* White text */
+    cursor: pointer;
+    height: 56px;
+    padding: 0 25px;
+    border-radius: 0 30px 30px 0; /* Rounded corners */
+    background: #000;  /* Solid black button */
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3); /* Soft shadow for depth */
+    transition: none; /* No transition effect */
+}
+
+.generate-form .generate-btn:hover,
+.generate-form .generate-btn:active {
+    background: #000;  /* Keep the button black */
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3); /* Same shadow on hover/click */
+    cursor: pointer;  /* Pointer cursor remains */
+    border: none; /* Ensure no border appears */
+}
+
+/* Responsive Adjustments */
+@media screen and (max-width: 760px) {
+    .image-generator h1 {
+        font-size: 2rem;
+    }
+
+    .image-generator p {
+        font-size: 1rem;
+    }
+
+    .image-gallery .img-card {
+        width: 200px; /* Adjusted for smaller screens */
+        height: 200px;
+    }
+
+    .generate-form .prompt-input {
+        font-size: 0.9rem;
+    }
+
+    .generate-form .generate-btn {
+        font-size: 0.9rem;
+    }
+}

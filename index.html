@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <div class="owner-name">OWNER • ALVEXD</div>
+    <title>AI Image Generator Flame</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="script.js" defer></script>
+</head>
+
+<body>
+    <!-- Heading and Description Section -->
+    <section class="image-generator">
+        <div class="content">
+            <h1>AI Image Generator Tool By Flame</h1>
+            <p>Convert your text into an image within a second using this Flame Tool</p>
+        </div>
+    </section>
+
+    <!-- Output Image Section with Download Icon -->
+    <section class="image-gallery">
+        <div class="img-card">
+            <img src="images/loader.svg" alt="Generated Image">
+        </div>
+        <!-- Download Icon Button (Initially hidden) -->
+        <a href="#" class="download-icon" style="display: none;">
+            <img src="images/download-icon.svg" alt="Download Icon">
+        </a>
+    </section>
+
+    <!-- Input Box Section (Below the output) -->
+    <section class="input-section">
+        <form action="#" class="generate-form">
+            <input class="prompt-input" type="text" placeholder="Describe what you want to see" required>
+            <div class="controls">
+                <button type="submit" class="generate-btn">Generate</button>
+            </div>
+        </form>
+    </section>
+
+    <script>
+        // Script to handle showing the download icon after image generation
+        const form = document.querySelector('.generate-form');
+        const downloadIcon = document.querySelector('.download-icon');
+
+        form.addEventListener('submit', (event) => {
+            event.preventDefault(); // Prevent the default form submission
+
+            // Simulate image generation (you should replace this with actual image generation logic)
+            const imgCard = document.querySelector('.img-card img');
+            imgCard.src = 'path_to_generated_image.jpg'; // Replace with the generated image path
+            imgCard.alt = 'Generated Image';
+
+            // Show the download icon
+            downloadIcon.style.display = 'flex'; // Show the download icon
+        });
+    </script>
+</body>
+
+</html>
