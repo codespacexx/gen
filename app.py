@@ -4,35 +4,35 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 from mplsoccer.pitch import Pitch
-import numpy as np  # Needed for heatmap
+import numpy as np
+from datetime import datetime
 
 # Streamlit Page Setup
 st.set_page_config(page_title="AI Football Match Analysis", layout="wide")
-st.title("AI Football Match Analysis")
-st.title("DEV • ALVEXD")
-st.write("Analyze football matches with advanced AI-driven insights in real-time or from historical data.")
+st.markdown("<h1 style='text-align: center; color: #ff4b4b;'>AI Football Match Analysis</h1>", unsafe_allow_html=True)
+st.markdown("<h3 style='text-align: center;'>DEV • ALVEXD</h3>", unsafe_allow_html=True)
+st.write("Analyze football matches with advanced AI-driven insights in real-time or from old data.")
 
 # API Setup
-API_KEY = "a2d5140b518d4c9db46decce1aacdb82"  # Your provided API key
+API_KEY = "a2d5140b518d4c9db46decce1aacdb82"  # Replace with your actual API key
 API_URL_LIVE = "https://api.football-data.org/v4/matches"
-API_URL_OLD = "https://api.football-data.org/v4/competitions/{competition_id}/matches"  # Replace `{competition_id}` dynamically
+API_URL_OLD = "https://api.football-data.org/v4/competitions/{competition_id}/matches"
 
 # Function to fetch live match data
 def fetch_live_match_data():
     headers = {"X-Auth-Token": API_KEY}
     response = requests.get(API_URL_LIVE, headers=headers)
     if response.status_code == 200:
-        data = response.json()
-        matches = data.get('matches', [])
+        matches = response.json().get('matches', [])
         match_data = []
-
         for match in matches:
             match_info = {
-                "match_name": f"{match['homeTeam']['name']} vs {match['awayTeam']['name']}",
-                "team_1": match['homeTeam']['name'],
-                "team_2": match['awayTeam']['name'],
-                "score": f"{match['score']['fullTime']['homeTeam']} - {match['score']['fullTime']['awayTeam']}",
-                "status": match['status']
+                "match_name": f"{match.get('homeTeam', {}).get('name', 'N/A')} vs {match.get('awayTeam', {}).get('name', 'N/A')}",
+                "team_1": match.get('homeTeam', {}).get('name', 'N/A'),
+                "team_2": match.get('awayTeam', {}).get('name', 'N/A'),
+                "score": f"{match.get('score', {}).get('fullTime', {}).get('homeTeam', 0)} - {match.get('score', {}).get('fullTime', {}).get('awayTeam', 0)}",
+                "status": match.get('status', 'Unknown'),
+                "date": match.get('utcDate', 'N/A')
             }
             match_data.append(match_info)
         return pd.DataFrame(match_data)
@@ -45,18 +45,16 @@ def fetch_old_match_data(competition_id):
     headers = {"X-Auth-Token": API_KEY}
     response = requests.get(API_URL_OLD.format(competition_id=competition_id), headers=headers)
     if response.status_code == 200:
-        data = response.json()
-        matches = data.get('matches', [])
+        matches = response.json().get('matches', [])
         match_data = []
-
         for match in matches:
             match_info = {
-                "match_name": f"{match['homeTeam']['name']} vs {match['awayTeam']['name']}",
-                "date": match['utcDate'],
-                "team_1": match['homeTeam']['name'],
-                "team_2": match['awayTeam']['name'],
-                "score": f"{match['score']['fullTime']['homeTeam']} - {match['score']['fullTime']['awayTeam']}",
-                "status": match['status']
+                "match_name": f"{match.get('homeTeam', {}).get('name', 'N/A')} vs {match.get('awayTeam', {}).get('name', 'N/A')}",
+                "date": match.get('utcDate', 'N/A'),
+                "team_1": match.get('homeTeam', {}).get('name', 'N/A'),
+                "team_2": match.get('awayTeam', {}).get('name', 'N/A'),
+                "score": f"{match.get('score', {}).get('fullTime', {}).get('homeTeam', 0)} - {match.get('score', {}).get('fullTime', {}).get('awayTeam', 0)}",
+                "status": match.get('status', 'Unknown')
             }
             match_data.append(match_info)
         return pd.DataFrame(match_data)
@@ -64,11 +62,20 @@ def fetch_old_match_data(competition_id):
         st.error(f"Error fetching old data: {response.status_code}")
         return pd.DataFrame()
 
-# Helper Functions for Match Analysis
+# Additional Features: Match Statistics
+def display_match_stats(data):
+    st.subheader("Match Statistics")
+    stats = {
+        "Total Matches": len(data),
+        "Completed Matches": len(data[data["status"] == "FINISHED"]),
+        "Upcoming Matches": len(data[data["status"] == "SCHEDULED"])
+    }
+    st.write(stats)
+
+# Visualization Functions
 def plot_xg():
     pitch = Pitch(pitch_color='grass', line_color='white', stripe=True)
     fig, ax = pitch.draw(figsize=(10, 7))
-    # Simulated shot data (X, Y, Outcome, xG value)
     shots = pd.DataFrame({
         "X": [50, 60, 70],
         "Y": [40, 50, 60],
@@ -85,48 +92,44 @@ def plot_xg():
     return fig
 
 def heatmap_xg():
-    # Simulate xG heatmap
     heatmap_data = np.random.rand(8, 12)
     fig, ax = plt.subplots(figsize=(10, 7))
-    sns.heatmap(heatmap_data, cmap="YlGnBu", ax=ax)
+    sns.heatmap(heatmap_data, cmap="YlGnBu", ax=ax, cbar_kws={'label': 'xG Value'})
     ax.set_title("xG Heatmap")
     return fig
 
-# Streamlit Interactive Elements
-st.sidebar.header("Choose Match Type")
-match_type = st.sidebar.radio("Match Type", ["Live Matches", "Historical Matches"])
+# Sidebar Setup
+st.sidebar.header("Match Analysis")
+match_type = st.sidebar.radio("Select Match Type", ["Live Matches", "Old Matches"])
 
 if match_type == "Live Matches":
     data = fetch_live_match_data()
     if data.empty:
-        st.write("No live matches found.")
+        st.write("No live matches available at the moment.")
     else:
-        match_options = data["match_name"].unique()
-        selected_match = st.sidebar.selectbox("Select a Live Match", match_options)
+        display_match_stats(data)
+        selected_match = st.sidebar.selectbox("Select a Live Match", data["match_name"].unique())
         match_data = data[data["match_name"] == selected_match]
-
         st.subheader(f"Match: {selected_match}")
         st.write(f"Teams: {match_data['team_1'].values[0]} vs {match_data['team_2'].values[0]}")
         st.write(f"Score: {match_data['score'].values[0]}")
         st.write(f"Status: {match_data['status'].values[0]}")
-        st.subheader("Expected Goals (xG) Visualization")
+        st.write(f"Date: {datetime.strptime(match_data['date'].values[0], '%Y-%m-%dT%H:%M:%SZ')}")
         st.pyplot(plot_xg())
 
-elif match_type == "Historical Matches":
-    competition_id = st.sidebar.text_input("Enter Competition ID", "PL")  # Example: PL for Premier League
+elif match_type == "Old Matches":
+    competition_id = st.sidebar.text_input("Enter Competition ID", "PL")
     data = fetch_old_match_data(competition_id)
     if data.empty:
-        st.write("No historical matches found.")
+        st.write("No old matches found for this competition.")
     else:
-        match_options = data["match_name"].unique()
-        selected_match = st.sidebar.selectbox("Select a Historical Match", match_options)
+        display_match_stats(data)
+        selected_match = st.sidebar.selectbox("Select an Old Match", data["match_name"].unique())
         match_data = data[data["match_name"] == selected_match]
-
-        st.subheader(f"Historical Match: {selected_match}")
-        st.write(f"Date: {match_data['date'].values[0]}")
+        st.subheader(f"Old Match: {selected_match}")
+        st.write(f"Date: {datetime.strptime(match_data['date'].values[0], '%Y-%m-%dT%H:%M:%SZ')}")
         st.write(f"Teams: {match_data['team_1'].values[0]} vs {match_data['team_2'].values[0]}")
         st.write(f"Score: {match_data['score'].values[0]}")
         st.write(f"Status: {match_data['status'].values[0]}")
-        st.subheader("Expected Goals (xG) Visualization")
         st.pyplot(plot_xg())
-               
+                
