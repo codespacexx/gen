@@ -1,112 +1,126 @@
-import os
-import json
-import uuid
 import streamlit as st
-from groq import Groq
+import requests
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+from mplsoccer.pitch import Pitch
 
-# Streamlit page configuration
-st.set_page_config(
-    page_title="Flagence Chat",
-    page_icon="Flagence Chat",
-    layout="centered"
-)
+# Streamlit Page Setup
+st.set_page_config(page_title="AI Football Match Analysis", layout="wide")
+st.title("AI Football Match Analysis")
+st.write("Analyze football matches with advanced AI-driven insights in real-time.")
 
-# Load API key from config file
-working_dir = os.path.dirname(os.path.abspath(__file__))
-config_data = json.load(open(f"{working_dir}/config.json"))
-GROQ_API_KEY = config_data["GROQ_API_KEY"]
+# API Setup (Replace with your own API key)
+API_KEY = "your_api_key_here"  # Replace this with your API key
+API_URL = "https://api-football-v1.p.rapidapi.com/v3/matches"
 
-# Set API key in environment
-os.environ["GROQ_API_KEY"] = GROQ_API_KEY
+# Function to fetch live match data from the API
+def fetch_live_match_data():
+    headers = {
+        "X-RapidAPI-Key": API_KEY,
+        "X-RapidAPI-Host": "api-football-v1.p.rapidapi.com"
+    }
+    
+    params = {
+        "live": "true"  # Fetch live matches
+    }
+    
+    response = requests.get(API_URL, headers=headers, params=params)
+    
+    if response.status_code == 200:
+        data = response.json()
+        matches = data['response']
+        match_data = []
+        
+        for match in matches:
+            match_info = {
+                "match_name": f"{match['teams']['home']['name']} vs {match['teams']['away']['name']}",
+                "team_1": match['teams']['home']['name'],
+                "team_2": match['teams']['away']['name'],
+                "score": f"{match['goals']['home']} - {match['goals']['away']}",
+                "status": match['fixture']['status']['long'],
+                "event": match['goals']['home'] > match['goals']['away'] and "Goal" or "Shot"
+            }
+            match_data.append(match_info)
+        return pd.DataFrame(match_data)
+    else:
+        st.error(f"Error fetching data from API: {response.status_code}")
+        return pd.DataFrame()
 
-# Initialize Groq client
-client = Groq()
+# Helper Functions for Match Analysis
+def plot_xg():
+    pitch = Pitch(pitch_color='grass', line_color='white', stripe=True)
+    fig, ax = pitch.draw(figsize=(10, 7))
+    # Simulated shot data (X, Y, Outcome, xG value)
+    shots = pd.DataFrame({
+        "X": [50, 60, 70],
+        "Y": [40, 50, 60],
+        "shot_outcome": ["Goal", "Miss", "Goal"],
+        "shot_statsbomb_xg": [0.8, 0.2, 0.9]
+    })
+    goals = shots[shots['shot_outcome'] == 'Goal']
+    no_goals = shots[shots['shot_outcome'] != 'Goal']
+    pitch.scatter(goals["X"], goals["Y"], s=goals["shot_statsbomb_xg"] * 500,
+                  c="green", edgecolors="black", label="Goals", ax=ax)
+    pitch.scatter(no_goals["X"], no_goals["Y"], s=no_goals["shot_statsbomb_xg"] * 500,
+                  c="red", edgecolors="black", label="Missed Shots", ax=ax)
+    plt.legend(loc="upper right")
+    return fig
 
-# Initialize session states if not already present
-if "chat_histories" not in st.session_state:
-    st.session_state.chat_histories = []  # Store multiple chat histories
-if "current_chat" not in st.session_state:
-    st.session_state.current_chat = []  # Store the current chat
+def heatmap_xg():
+    # Simulate xG heatmap
+    heatmap_data = np.random.rand(8, 12)
+    fig, ax = plt.subplots(figsize=(10, 7))
+    sns.heatmap(heatmap_data, cmap="YlGnBu", ax=ax)
+    ax.set_title("xG Heatmap")
+    return fig
 
-# Generate a unique key for new users
-if "user_key" not in st.session_state:
-    st.session_state.user_key = str(uuid.uuid4())  # Generate unique key
+def player_insights():
+    # Simulate player insights
+    return "Player A (Team A)", "Player B (Team B)"
 
-# Sidebar for chat history with a single line title
-with st.sidebar:
-    st.markdown("<h2 style='color:#333;'>Chat History</h2>", unsafe_allow_html=True)
+# Streamlit Interactive Elements
+data = fetch_live_match_data()
 
-    # Display titles for all previous chats
-    for idx, chat in enumerate(st.session_state.chat_histories):
-        title = chat[0]["content"][:10]  # Show the first 10 characters of the first message as the title
-        if st.button(f"Chat {idx + 1}: {title}"):
-            st.session_state.current_chat = chat  # Load the selected chat history
+# Check if there are live matches
+if data.empty:
+    st.write("No live matches found.")
+else:
+    # Sidebar Match Selection
+    match_options = data["match_name"].unique()
+    selected_match = st.sidebar.selectbox("Select a Match", match_options)
 
-    # New Chat button to start a new chat
-    if st.button("New Chat"):
-        # Store the current chat in chat histories if it's not empty
-        if st.session_state.current_chat:
-            st.session_state.chat_histories.append(st.session_state.current_chat)
-        st.session_state.current_chat = []  # Clear current chat for new session
+    # Get data for selected match
+    match_data = data[data["match_name"] == selected_match]
 
-# Page title
-st.title("Flagence by FLAMEXD")
+    # Display selected match details
+    st.subheader(f"Match: {selected_match}")
+    st.write(f"Teams: {match_data['team_1'].values[0]} vs {match_data['team_2'].values[0]}")
+    st.write(f"Score: {match_data['score'].values[0]}")
+    st.write(f"Status: {match_data['status'].values[0]}")
 
-# Display chat messages on the main screen
-chat_display = st.container()  # Define a container to hold chat messages
-with chat_display:
-    if st.session_state.current_chat:  # Check if there are any chat messages
-        for message in st.session_state.current_chat:
-            with st.chat_message(message["role"]):
-                st.markdown(message["content"])
+    # Simulate live match data updates for selected match
+    st.write("Simulating live event data...")
+    event_data = match_data['event'].values[0]
 
-# Input field for user to type a message
-user_prompt = st.chat_input("Ask Flagence...")
+    if event_data == "Goal":
+        st.success("Goal Scored!")
+    elif event_data == "Shot":
+        st.warning("Shot Attempted!")
 
-if user_prompt:
-    # Display user's message and save it in current chat history
-    st.chat_message("user").markdown(user_prompt)
-    st.session_state.current_chat.append({"role": "user", "content": user_prompt})
+    # Display Match Analysis
+    if st.button("Generate Match Analysis"):
+        # Display xG plot
+        st.subheader("Expected Goals (xG) Visualization")
+        st.pyplot(plot_xg())
 
-    # System messages to set the chatbot's personality and behavior
-    messages = [
-        {"role": "system", "content": "You are a helpful assistant named Flagence by FLAMEXD."},
-        {"role": "system", "content": "Respond in a friendly and approachable tone, with light humor if appropriate."},
-        {"role": "system", "content": "Provide clear and detailed explanations as if you are teaching the user."},
-        {"role": "system", "content": "Encourage the user to ask follow-up questions if they need more help."},
-        {"role": "system", "content": "Feel free to add a fun fact or an interesting tip related to the topic if the user seems curious."},
-        *st.session_state.current_chat
-    ]
+        # Display xG heatmap
+        st.subheader("xG Heatmap")
+        st.pyplot(heatmap_xg())
 
-    # Generate response from the model
-    response = client.chat.completions.create(
-        model="llama-3.1-8b-instant",
-        messages=messages
-    )
-
-    assistant_response = response.choices[0].message.content
-    st.session_state.current_chat.append({"role": "assistant", "content": assistant_response})
-
-    # Display assistant's response with the correct icon
-    with st.chat_message("assistant"):
-        st.markdown(assistant_response)
-
-# Style adjustments for a classic sidebar look
-st.markdown("""
-    <style>
-        .sidebar .sidebar-content {
-            background-color: #f8f9fa;
-            padding-top: 20px;
-        }
-        .css-1lcbmhc {  /* Sidebar title color */
-            color: #333 !important;
-        }
-        .css-1y4p8pa {  /* Sidebar buttons style */
-            background-color: #007bff !important;
-            color: #fff !important;
-        }
-        .css-1x8cf1d {  /* Main title text color */
-            color: #444 !important;
-        }
-    </style>
-""", unsafe_allow_html=True)
+        # Display player insights
+        st.subheader("Player Insights")
+        xg_leader, goals_leader = player_insights()
+        st.write(f"xG Leader: {xg_leader}")
+        st.write(f"Goals Leader: {goals_leader}")
+    
