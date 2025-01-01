@@ -1,3 +1,7 @@
 streamlit
 requests
-groq
+pandas
+matplotlib
+seaborn
+mplsoccer
+numpy
