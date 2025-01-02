@@ -37,7 +37,7 @@ def fetch_live_match_data():
             "match_name": f"{match.get('homeTeam', {}).get('name', 'N/A')} vs {match.get('awayTeam', {}).get('name', 'N/A')}",
             "team_1": match.get('homeTeam', {}).get('name', 'N/A'),
             "team_2": match.get('awayTeam', {}).get('name', 'N/A'),
-            "score": f"{match.get('score', {}).get('fullTime', {}).get('homeTeam', 'N/A')} - {match.get('score', {}).get('fullTime', {}).get('awayTeam', 'N/A')}",
+            "score": f"{match.get('score', {}).get('fullTime', {}).get('homeTeam', 0)} - {match.get('score', {}).get('fullTime', {}).get('awayTeam', 0)}",
             "status": match.get('status', 'Unknown'),
             "date": match.get('utcDate', 'N/A'),
             "statistics": match.get('statistics', {})
@@ -55,9 +55,9 @@ def fetch_old_match_data(competition_id):
             "match_name": f"{match.get('homeTeam', {}).get('name', 'N/A')} vs {match.get('awayTeam', {}).get('name', 'N/A')}",
             "team_1": match.get('homeTeam', {}).get('name', 'N/A'),
             "team_2": match.get('awayTeam', {}).get('name', 'N/A'),
-            "score": f"{match.get('score', {}).get('fullTime', {}).get('homeTeam', 'N/A')} - {match.get('score', {}).get('fullTime', {}).get('awayTeam', 'N/A')}",
-            "date": match.get('utcDate', 'N/A'),
+            "score": f"{match.get('score', {}).get('fullTime', {}).get('homeTeam', 0)} - {match.get('score', {}).get('fullTime', {}).get('awayTeam', 0)}",
             "status": match.get('status', 'Unknown'),
+            "date": match.get('utcDate', 'N/A'),
             "statistics": match.get('statistics', {})
         }
         for match in matches
@@ -106,10 +106,17 @@ match_type = st.sidebar.radio("Select Match Type", ["Live Matches", "Old Matches
 if match_type == "Live Matches":
     live_data = fetch_live_match_data()
     if not live_data:
-        st.write("No live matches available.")
+        st.warning("No live matches available.")
     else:
         selected_match = st.sidebar.selectbox("Select a Match", [match["match_name"] for match in live_data])
         match_data = next((match for match in live_data if match["match_name"] == selected_match), {})
+        
+        # Adding live match status effects
+        if match_data['status'] == "LIVE":
+            st.success("Match is live!")
+        elif match_data['status'] in ["IN_PLAY", "PAUSED"]:
+            st.info("Match is ongoing.")
+
         st.subheader(f"Match: {selected_match}")
         st.write(f"Teams: {match_data['team_1']} vs {match_data['team_2']}")
         st.write(f"Score: {match_data['score']}")
@@ -142,4 +149,4 @@ elif match_type == "Old Matches":
         st.subheader("Match Timeline")
         events = [{"minute": 45, "type": "Goal", "player": "Player A"}]
         st.pyplot(plot_timeline(events))
-    
+               
