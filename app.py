@@ -37,7 +37,7 @@ def fetch_live_match_data():
             "match_name": f"{match.get('homeTeam', {}).get('name', 'N/A')} vs {match.get('awayTeam', {}).get('name', 'N/A')}",
             "team_1": match.get('homeTeam', {}).get('name', 'N/A'),
             "team_2": match.get('awayTeam', {}).get('name', 'N/A'),
-            "score": f"{match.get('score', {}).get('fullTime', {}).get('homeTeam', 0)} - {match.get('score', {}).get('fullTime', {}).get('awayTeam', 0)}",
+            "score": format_score(match),
             "status": match.get('status', 'Unknown'),
             "date": match.get('utcDate', 'N/A'),
             "statistics": match.get('statistics', {})
@@ -55,13 +55,24 @@ def fetch_old_match_data(competition_id):
             "match_name": f"{match.get('homeTeam', {}).get('name', 'N/A')} vs {match.get('awayTeam', {}).get('name', 'N/A')}",
             "team_1": match.get('homeTeam', {}).get('name', 'N/A'),
             "team_2": match.get('awayTeam', {}).get('name', 'N/A'),
-            "score": f"{match.get('score', {}).get('fullTime', {}).get('homeTeam', 0)} - {match.get('score', {}).get('fullTime', {}).get('awayTeam', 0)}",
+            "score": format_score(match),
             "status": match.get('status', 'Unknown'),
             "date": match.get('utcDate', 'N/A'),
             "statistics": match.get('statistics', {})
         }
         for match in matches
     ]
+
+def format_score(match):
+    """Helper function to format the score."""
+    home_score = match.get('score', {}).get('fullTime', {}).get('homeTeam')
+    away_score = match.get('score', {}).get('fullTime', {}).get('awayTeam')
+
+    if home_score is not None and away_score is not None:
+        return f"{home_score} - {away_score}"
+    else:
+        return "Score unavailable"
+        
 
 def generate_heatmap(player_name, heatmap_data):
     pitch = Pitch(pitch_color='grass', line_color='white', stripe=True)
