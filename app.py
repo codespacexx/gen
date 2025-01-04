@@ -1,11 +1,16 @@
 import streamlit as st
 import pandas as pd
+import numpy as np
 import plotly.express as px
+import seaborn as sns
+import matplotlib.pyplot as plt
 import requests
+from sklearn.linear_model import LinearRegression
+from sklearn.preprocessing import LabelEncoder
 
 # Page Configuration
 st.set_page_config(
-    page_title="Football Transfer Market Insights",
+    page_title="Football Transfer Analytics",
     page_icon="⚽",
     layout="wide"
 )
@@ -14,25 +19,21 @@ st.set_page_config(
 st.markdown("""
     <style>
         body {
-            background-color: #f4f4f9;
+            background-color: #f9f9f9;
             color: #333;
-            font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+            font-family: Arial, sans-serif;
         }
         .main-title {
             text-align: center;
-            font-size: 3.5em;
+            font-size: 4em;
             font-weight: bold;
-            margin-bottom: 10px;
-            color: #f39c12;
-            background: linear-gradient(to right, #f39c12, #8e44ad);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
+            margin: 20px 0;
+            color: #1abc9c;
         }
         .description {
             text-align: center;
             font-size: 1.2em;
             color: #555;
-            margin-bottom: 50px;
         }
         .footer {
             text-align: center;
@@ -47,23 +48,22 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # Title and Description
-st.markdown("<div class='main-title'>⚽ Football Transfer Market Insights</div>", unsafe_allow_html=True)
+st.markdown("<div class='main-title'>Football Transfer Analytics</div>", unsafe_allow_html=True)
 st.markdown("""
     <div class='description'>
-        Explore player transfers, league spending, emerging talents, and much more.  
-        This professional tool provides advanced insights into the football transfer market.
+        Explore transfer data, league spending, young talents, predictive analytics, and much more.
     </div>
 """, unsafe_allow_html=True)
 
-# Sidebar for Navigation
+# Sidebar Navigation
 st.sidebar.title("⚙️ Navigation")
 page = st.sidebar.radio(
-    "Explore Features", 
-    ["Home", "League Spending Analysis", "Player Search", "Young Talent Tracker", 
-     "Top Transfers", "Transfer Comparison", "Transfer Trends"]
+    "Choose a Feature",
+    ["Home", "League Spending", "Player Search", "Young Talent Tracker", "Top Transfers",
+     "Transfer Comparison", "Transfer Trends", "Predict Future Fees", "Club Spending Breakdown"]
 )
 
-# API Integration
+# Fetch and Cache Data
 @st.cache_data
 def fetch_data():
     try:
@@ -83,29 +83,28 @@ data = fetch_data()
 if page == "Home":
     st.header("Welcome to the Football Transfer Analytics Tool")
     st.write("""
-    - **Analyze transfer data:** Discover how leagues and clubs spend on players.  
-    - **Track young talent:** Identify emerging stars with high potential.  
-    - **Compare transfers:** Dive into transfer fees, clubs, and players.  
+    - Explore player transfers, league and club spending, emerging young talents, and more.  
+    - Use advanced tools like predictive analytics and data visualizations for insights.
+    - Select a feature from the sidebar to begin.
     """)
-    st.write("Start exploring by selecting a feature from the sidebar.")
 
-# League Spending Analysis
-elif page == "League Spending Analysis":
+# League Spending
+elif page == "League Spending":
     st.header("💰 League Spending Analysis")
     if not data.empty:
         league_spending = data.groupby("league.name")["fee.amount"].sum().reset_index()
         fig = px.bar(
-            league_spending, x="league.name", y="fee.amount", 
+            league_spending, x="league.name", y="fee.amount",
             color="league.name", title="Total Spending by League",
             labels={"fee.amount": "Total Spending (€M)", "league.name": "League"}
         )
         st.plotly_chart(fig, use_container_width=True)
     else:
-        st.warning("No data available. Check the API or dataset.")
+        st.warning("No data available.")
 
 # Player Search
 elif page == "Player Search":
-    st.header("🔎 Search for Player Transfers")
+    st.header("🔎 Player Transfer Search")
     player_name = st.text_input("Enter Player Name")
     if player_name and not data.empty:
         search_results = data[data['player.name'].str.contains(player_name, case=False, na=False)]
@@ -123,7 +122,6 @@ elif page == "Young Talent Tracker":
     st.header("🌟 Top Young Talents")
     if not data.empty:
         young_players = data[data['player.age'] < 22].sort_values(by="fee.amount", ascending=False)
-        st.write("These are the top young talents based on transfer fees:")
         st.dataframe(young_players)
     else:
         st.warning("No data available.")
@@ -134,7 +132,6 @@ elif page == "Top Transfers":
     if not data.empty:
         season = st.selectbox("Select Season", data['season'].dropna().unique())
         top_transfers = data[data['season'] == season].sort_values(by="fee.amount", ascending=False)
-        st.write(f"Top transfers for the {season} season:")
         st.dataframe(top_transfers)
     else:
         st.warning("No data available.")
@@ -147,7 +144,6 @@ elif page == "Transfer Comparison":
         player2 = st.selectbox("Select Player 2", data['player.name'].unique())
         if player1 and player2:
             comparison = data[data['player.name'].isin([player1, player2])]
-            st.write(f"Comparison between {player1} and {player2}:")
             st.dataframe(comparison)
     else:
         st.warning("No data available.")
@@ -166,10 +162,48 @@ elif page == "Transfer Trends":
     else:
         st.warning("No data available.")
 
+# Predict Future Fees
+elif page == "Predict Future Fees":
+    st.header("🔮 Predict Future Player Fees")
+    if not data.empty:
+        st.write("Using regression models to predict future transfer fees based on player attributes.")
+        # Prepare data
+        features = ["player.age", "league.name", "fee.amount"]
+        data = data.dropna(subset=features)
+        le = LabelEncoder()
+        data["league_encoded"] = le.fit_transform(data["league.name"])
+        
+        # Model
+        X = data[["player.age", "league_encoded"]]
+        y = data["fee.amount"]
+        model = LinearRegression()
+        model.fit(X, y)
+        
+        # Input
+        age = st.slider("Player Age", 16, 40, 25)
+        league = st.selectbox("League", le.classes_)
+        league_encoded = le.transform([league])[0]
+        
+        # Prediction
+        predicted_fee = model.predict([[age, league_encoded]])[0]
+        st.write(f"Predicted Transfer Fee: **€{predicted_fee:.2f}M**")
+    else:
+        st.warning("No data available.")
+
+# Club Spending Breakdown
+elif page == "Club Spending Breakdown":
+    st.header("🏟️ Club Spending Breakdown")
+    if not data.empty:
+        club_spending = data.groupby("team.name")["fee.amount"].sum().reset_index()
+        club_spending = club_spending.sort_values(by="fee.amount", ascending=False).head(10)
+        fig = px.pie(club_spending, values="fee.amount", names="team.name", title="Top 10 Clubs by Spending")
+        st.plotly_chart(fig, use_container_width=True)
+    else:
+        st.warning("No data available.")
+
 # Footer
 st.markdown("""
     <div class='footer'>
-        Built with ❤️ by <b>DEV ALVEXD</b>. Transforming data into insights.
+        Built with ❤️ by <b>DEV ALVEXD</b>. Empowering football insights.
     </div>
 """, unsafe_allow_html=True)
-                                         
