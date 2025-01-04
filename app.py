@@ -1,163 +1,175 @@
 import streamlit as st
-import requests
 import pandas as pd
-from mplsoccer.pitch import Pitch
-import numpy as np
-import seaborn as sns
-import matplotlib.pyplot as plt
+import plotly.express as px
+import requests
 
-# Streamlit Page Setup
-st.set_page_config(page_title="Premium AI Football Match Analysis", layout="wide")
-st.markdown("<h1 style='text-align: center; color: #0078FF;'>Premium AI Football Match Analysis</h1>", unsafe_allow_html=True)
-st.markdown("<h3 style='text-align: center;'>DEV • ALVEXD</h3>", unsafe_allow_html=True)
-st.write("Unleash the power of AI for advanced football match analytics, player performance heatmaps, and xG data.")
+# Page Configuration
+st.set_page_config(
+    page_title="Football Transfer Market Insights",
+    page_icon="⚽",
+    layout="wide"
+)
 
-# API Setup
-API_KEY = "a2d5140b518d4c9db46decce1aacdb82"  # Replace with your actual API key
-API_URL_LIVE = "https://api.football-data.org/v4/matches"
-API_URL_OLD = "https://api.football-data.org/v4/competitions/{competition_id}/matches"
-
-# Caching API Requests
-@st.cache_data(ttl=300)
-def fetch_data(url, headers):
-    response = requests.get(url, headers=headers)
-    if response.status_code == 200:
-        return response.json()
-    else:
-        st.error(f"API Request Failed: {response.status_code}")
-        return {}
-
-# Functions
-def fetch_live_match_data():
-    headers = {"X-Auth-Token": API_KEY}
-    response = fetch_data(API_URL_LIVE, headers)
-    matches = response.get('matches', [])
-    return [
-        {
-            "match_name": f"{match.get('homeTeam', {}).get('name', 'N/A')} vs {match.get('awayTeam', {}).get('name', 'N/A')}",
-            "team_1": match.get('homeTeam', {}).get('name', 'N/A'),
-            "team_2": match.get('awayTeam', {}).get('name', 'N/A'),
-            "score": format_score(match),
-            "status": match.get('status', 'Unknown'),
-            "date": match.get('utcDate', 'N/A'),
-            "statistics": match.get('statistics', {})
+# Custom CSS for Styling
+st.markdown("""
+    <style>
+        body {
+            background-color: #f4f4f9;
+            color: #333;
+            font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
         }
-        for match in matches
-    ]
-
-def fetch_old_match_data(competition_id):
-    headers = {"X-Auth-Token": API_KEY}
-    url = API_URL_OLD.format(competition_id=competition_id)
-    response = fetch_data(url, headers)
-    matches = response.get('matches', [])
-    return [
-        {
-            "match_name": f"{match.get('homeTeam', {}).get('name', 'N/A')} vs {match.get('awayTeam', {}).get('name', 'N/A')}",
-            "team_1": match.get('homeTeam', {}).get('name', 'N/A'),
-            "team_2": match.get('awayTeam', {}).get('name', 'N/A'),
-            "score": format_score(match),
-            "status": match.get('status', 'Unknown'),
-            "date": match.get('utcDate', 'N/A'),
-            "statistics": match.get('statistics', {})
+        .main-title {
+            text-align: center;
+            font-size: 3.5em;
+            font-weight: bold;
+            margin-bottom: 10px;
+            color: #f39c12;
+            background: linear-gradient(to right, #f39c12, #8e44ad);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
         }
-        for match in matches
-    ]
+        .description {
+            text-align: center;
+            font-size: 1.2em;
+            color: #555;
+            margin-bottom: 50px;
+        }
+        .footer {
+            text-align: center;
+            margin-top: 50px;
+            color: #7f8c8d;
+            font-size: 0.9em;
+        }
+        .footer b {
+            color: #3498db;
+        }
+    </style>
+""", unsafe_allow_html=True)
 
-def format_score(match):
-    """Helper function to format the score."""
-    home_score = match.get('score', {}).get('fullTime', {}).get('homeTeam')
-    away_score = match.get('score', {}).get('fullTime', {}).get('awayTeam')
+# Title and Description
+st.markdown("<div class='main-title'>⚽ Football Transfer Market Insights</div>", unsafe_allow_html=True)
+st.markdown("""
+    <div class='description'>
+        Explore player transfers, league spending, emerging talents, and much more.  
+        This professional tool provides advanced insights into the football transfer market.
+    </div>
+""", unsafe_allow_html=True)
 
-    if home_score is not None and away_score is not None:
-        return f"{home_score} - {away_score}"
+# Sidebar for Navigation
+st.sidebar.title("⚙️ Navigation")
+page = st.sidebar.radio(
+    "Explore Features", 
+    ["Home", "League Spending Analysis", "Player Search", "Young Talent Tracker", 
+     "Top Transfers", "Transfer Comparison", "Transfer Trends"]
+)
+
+# API Integration
+@st.cache_data
+def fetch_data():
+    try:
+        url = "https://api.football-data.org/v4/transfers"
+        headers = {"Authorization": "Bearer a2d5140b518d4c9db46decce1aacdb82"}
+        response = requests.get(url, headers=headers)
+        response.raise_for_status()
+        data = response.json()
+        return pd.json_normalize(data['transfers'])
+    except Exception as e:
+        st.error(f"Error fetching data: {e}")
+        return pd.DataFrame()
+
+data = fetch_data()
+
+# Home Page
+if page == "Home":
+    st.header("Welcome to the Football Transfer Analytics Tool")
+    st.write("""
+    - **Analyze transfer data:** Discover how leagues and clubs spend on players.  
+    - **Track young talent:** Identify emerging stars with high potential.  
+    - **Compare transfers:** Dive into transfer fees, clubs, and players.  
+    """)
+    st.write("Start exploring by selecting a feature from the sidebar.")
+
+# League Spending Analysis
+elif page == "League Spending Analysis":
+    st.header("💰 League Spending Analysis")
+    if not data.empty:
+        league_spending = data.groupby("league.name")["fee.amount"].sum().reset_index()
+        fig = px.bar(
+            league_spending, x="league.name", y="fee.amount", 
+            color="league.name", title="Total Spending by League",
+            labels={"fee.amount": "Total Spending (€M)", "league.name": "League"}
+        )
+        st.plotly_chart(fig, use_container_width=True)
     else:
-        return "Score unavailable"
-        
+        st.warning("No data available. Check the API or dataset.")
 
-def generate_heatmap(player_name, heatmap_data):
-    pitch = Pitch(pitch_color='grass', line_color='white', stripe=True)
-    fig, ax = pitch.draw(figsize=(12, 8))
-    sns.kdeplot(
-        x=heatmap_data['X'], y=heatmap_data['Y'], shade=True,
-        cmap="coolwarm", n_levels=50, ax=ax
-    )
-    ax.set_title(f"{player_name}'s Performance Heatmap", fontsize=16)
-    return fig
-
-def plot_xg(team_1, team_2, xg_1, xg_2):
-    fig, ax = plt.subplots(figsize=(8, 5))
-    ax.barh([team_1, team_2], [xg_1, xg_2], color=['blue', 'red'])
-    ax.set_xlabel("Expected Goals (xG)")
-    ax.set_title("xG Comparison")
-    return fig
-
-def display_statistics(statistics):
-    if not statistics:
-        st.write("No statistics available for this match.")
+# Player Search
+elif page == "Player Search":
+    st.header("🔎 Search for Player Transfers")
+    player_name = st.text_input("Enter Player Name")
+    if player_name and not data.empty:
+        search_results = data[data['player.name'].str.contains(player_name, case=False, na=False)]
+        if not search_results.empty:
+            st.dataframe(search_results)
+        else:
+            st.warning("No results found for the given player.")
+    elif not player_name:
+        st.info("Enter a player's name to search.")
     else:
-        for key, value in statistics.items():
-            st.write(f"**{key.capitalize()}**: {value}")
+        st.warning("No data available.")
 
-def plot_timeline(events):
-    fig, ax = plt.subplots(figsize=(12, 4))
-    times = [event['minute'] for event in events if event['type'] == 'Goal']
-    players = [event['player'] for event in events if event['type'] == 'Goal']
-    ax.scatter(times, [1] * len(times), c='gold', label="Goals")
-    for i, txt in enumerate(players):
-        ax.annotate(txt, (times[i], 1.1))
-    ax.set_yticks([])
-    ax.set_xlabel("Time (minutes)")
-    ax.set_title("Match Timeline")
-    return fig
-
-# Sidebar
-st.sidebar.header("Match Analysis")
-match_type = st.sidebar.radio("Select Match Type", ["Live Matches", "Old Matches"])
-
-if match_type == "Live Matches":
-    live_data = fetch_live_match_data()
-    if not live_data:
-        st.warning("No live matches available.")
+# Young Talent Tracker
+elif page == "Young Talent Tracker":
+    st.header("🌟 Top Young Talents")
+    if not data.empty:
+        young_players = data[data['player.age'] < 22].sort_values(by="fee.amount", ascending=False)
+        st.write("These are the top young talents based on transfer fees:")
+        st.dataframe(young_players)
     else:
-        selected_match = st.sidebar.selectbox("Select a Match", [match["match_name"] for match in live_data])
-        match_data = next((match for match in live_data if match["match_name"] == selected_match), {})
-        
-        # Adding live match status effects
-        if match_data['status'] == "LIVE":
-            st.success("Match is live!")
-        elif match_data['status'] in ["IN_PLAY", "PAUSED"]:
-            st.info("Match is ongoing.")
+        st.warning("No data available.")
 
-        st.subheader(f"Match: {selected_match}")
-        st.write(f"Teams: {match_data['team_1']} vs {match_data['team_2']}")
-        st.write(f"Score: {match_data['score']}")
-        st.write(f"Status: {match_data['status']}")
-        st.write(f"Date: {match_data['date']}")
-
-        st.subheader("Team Statistics")
-        display_statistics(match_data['statistics'])
-
-        st.subheader("xG Comparison")
-        st.pyplot(plot_xg(match_data['team_1'], match_data['team_2'], 1.5, 2.1))
-
-elif match_type == "Old Matches":
-    competition_id = st.sidebar.text_input("Enter Competition ID (e.g., PL, CL, WC)", "PL")
-    old_data = fetch_old_match_data(competition_id)
-    if not old_data:
-        st.write("No old matches found for this competition.")
+# Top Transfers
+elif page == "Top Transfers":
+    st.header("📊 Top Transfers by Season")
+    if not data.empty:
+        season = st.selectbox("Select Season", data['season'].dropna().unique())
+        top_transfers = data[data['season'] == season].sort_values(by="fee.amount", ascending=False)
+        st.write(f"Top transfers for the {season} season:")
+        st.dataframe(top_transfers)
     else:
-        selected_match = st.sidebar.selectbox("Select a Match", [match["match_name"] for match in old_data])
-        match_data = next((match for match in old_data if match["match_name"] == selected_match), {})
-        st.subheader(f"Match: {selected_match}")
-        st.write(f"Teams: {match_data['team_1']} vs {match_data['team_2']}")
-        st.write(f"Score: {match_data['score']}")
-        st.write(f"Status: {match_data['status']}")
-        st.write(f"Date: {match_data['date']}")
+        st.warning("No data available.")
 
-        st.subheader("Team Statistics")
-        display_statistics(match_data['statistics'])
+# Transfer Comparison
+elif page == "Transfer Comparison":
+    st.header("⚔️ Compare Transfers")
+    if not data.empty:
+        player1 = st.selectbox("Select Player 1", data['player.name'].unique())
+        player2 = st.selectbox("Select Player 2", data['player.name'].unique())
+        if player1 and player2:
+            comparison = data[data['player.name'].isin([player1, player2])]
+            st.write(f"Comparison between {player1} and {player2}:")
+            st.dataframe(comparison)
+    else:
+        st.warning("No data available.")
 
-        st.subheader("Match Timeline")
-        events = [{"minute": 45, "type": "Goal", "player": "Player A"}]
-        st.pyplot(plot_timeline(events))
-               
+# Transfer Trends
+elif page == "Transfer Trends":
+    st.header("📈 Transfer Trends")
+    if not data.empty:
+        spending_over_time = data.groupby("season")["fee.amount"].sum().reset_index()
+        fig = px.line(
+            spending_over_time, x="season", y="fee.amount",
+            title="Spending Trends Over Seasons",
+            labels={"fee.amount": "Total Spending (€M)", "season": "Season"}
+        )
+        st.plotly_chart(fig, use_container_width=True)
+    else:
+        st.warning("No data available.")
+
+# Footer
+st.markdown("""
+    <div class='footer'>
+        Built with ❤️ by <b>DEV ALVEXD</b>. Transforming data into insights.
+    </div>
+""", unsafe_allow_html=True)
+                                         
