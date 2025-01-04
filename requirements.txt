@@ -4,4 +4,6 @@ pandas
 matplotlib
 seaborn
 mplsoccer
-numpy
+numpy 
+plotly 
+scikit-learn
