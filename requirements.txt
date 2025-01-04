@@ -7,3 +7,4 @@ mplsoccer
 numpy 
 plotly 
 scikit-learn
+beautifulsoup4
