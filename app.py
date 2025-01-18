@@ -1,222 +1,192 @@
+import os
+import json
+import uuid
 import streamlit as st
-import pandas as pd
-import requests
-import plotly.express as px
+from groq import Groq
 
-# Page Configuration
-st.set_page_config(
-    page_title="Football Transfer Analytics",
-    page_icon="⚽",
-    layout="wide"
-)
 
-# Custom CSS for Styling
-st.markdown("""
-    <style>
-        body {
-            background-color: #f4f4f4;
-            color: #333;
-            font-family: 'Roboto', sans-serif;
-        }
-        .main-title {
-            text-align: center;
-            font-size: 3em;
-            font-weight: bold;
-            margin: 20px 0;
-            color: #3498db;
-        }
-        .description {
-            text-align: center;
-            font-size: 1.2em;
-            color: #555;
-            margin-bottom: 40px;
-        }
-        .footer {
-            text-align: center;
-            margin-top: 50px;
-            color: #7f8c8d;
-            font-size: 0.9em;
-        }
-        .footer b {
-            color: #3498db;
-        }
-        .sidebar .sidebar-content {
-            background-color: #2c3e50;
-            color: #ecf0f1;
-        }
-        .stSelectbox, .stTextInput {
-            background-color: #ecf0f1;
-            border-radius: 4px;
-            margin-bottom: 20px;
-        }
-        .stButton {
-            background-color: #3498db;
-            color: white;
-            border-radius: 4px;
-            font-size: 1em;
-            padding: 10px;
-            margin-top: 20px;
-        }
-    </style>
-""", unsafe_allow_html=True)
-
-# Title and Description
-st.markdown("<div class='main-title'>Football Transfer Analytics</div>", unsafe_allow_html=True)
-st.markdown("""
-    <div class='description'>
-        Explore transfer data, league spending, young talents, predictive analytics, and more.
-    </div>
-""", unsafe_allow_html=True)
-
-# Sidebar Navigation
-st.sidebar.title("⚙️ Navigation")
-page = st.sidebar.radio(
-    "Choose a Feature",
-    ["Home", "League Spending", "Player Search", "Young Talent Tracker", "Top Transfers",
-     "Transfer Comparison", "Transfer Trends", "Predict Future Fees", "Club Spending Breakdown"]
-)
-
-# Fetch Data from Football-Data API
-@st.cache_data
-def fetch_data():
+def load_config():
+    """Load configuration from config.json."""
     try:
-        url = "https://api.football-data.org/v4/transfers"
-        headers = {"Authorization": "Bearer a2d5140b518d4c9db46decce1aacdb82"}  # Use your own API key
-        response = requests.get(url, headers=headers)
-        response.raise_for_status()
-        data = response.json()
-        return pd.json_normalize(data['transfers'])
+        working_dir = os.path.dirname(os.path.abspath(__file__))
+        with open(f"{working_dir}/config.json", "r") as file:
+            return json.load(file)
+    except FileNotFoundError:
+        st.error("Configuration file not found. Please ensure config.json exists.")
+        st.stop()
+    except json.JSONDecodeError:
+        st.error("Error parsing config.json. Ensure it is correctly formatted.")
+        st.stop()
+
+
+def initialize_session_state():
+    """Initialize session states for chat management."""
+    if "chat_histories" not in st.session_state:
+        st.session_state.chat_histories = []
+    if "current_chat" not in st.session_state:
+        st.session_state.current_chat = []
+    if "user_key" not in st.session_state:
+        st.session_state.user_key = str(uuid.uuid4())
+
+
+def save_current_chat():
+    """Save the current chat to chat histories if it's not empty."""
+    if st.session_state.current_chat:
+        st.session_state.chat_histories.append(st.session_state.current_chat)
+    st.session_state.current_chat = []
+
+
+def display_sidebar():
+    """Render the sidebar with chat history navigation and user options."""
+    with st.sidebar:
+        st.markdown("<h2 style='color:#333;'>Chat History</h2>", unsafe_allow_html=True)
+
+        # Display saved chat history
+        for idx, chat in enumerate(st.session_state.chat_histories):
+            if chat:  # Ensure non-empty chat histories
+                title = chat[0]["content"][:20] + "..."  # Shortened title
+                if st.button(f"Chat {idx + 1}: {title}", key=f"chat_{idx}"):
+                    st.session_state.current_chat = chat
+
+        # New chat button with styling
+        if st.button("New Chat", key="new_chat"):
+            save_current_chat()
+
+
+def render_chat_interface(client):
+    """Render the main chat interface with a more professional UI."""
+    st.title("Flagence by FLAMEXD")
+    st.markdown("<h5 style='color: #007bff;'>Your AI Assistant</h5>", unsafe_allow_html=True)
+
+    # Styling for better separation and visual hierarchy
+    chat_display = st.container()
+    with chat_display:
+        if st.session_state.current_chat:
+            for message in st.session_state.current_chat:
+                with st.chat_message(message["role"]):
+                    if message["role"] == "user":
+                        st.markdown(f"<div style='background-color:#e1f5fe; padding: 10px; border-radius: 8px;'>{message['content']}</div>", unsafe_allow_html=True)
+                    else:
+                        st.markdown(f"<div style='background-color:#f1f8e9; padding: 10px; border-radius: 8px;'>{message['content']}</div>", unsafe_allow_html=True)
+
+    user_prompt = st.chat_input("Ask Flagence...", key="user_prompt")
+    if user_prompt:
+        process_user_message(user_prompt, client)
+
+
+def process_user_message(user_prompt, client):
+    """Process the user message and generate a chatbot response."""
+    # Append user message to current chat
+    st.session_state.current_chat.append({"role": "user", "content": user_prompt})
+    st.chat_message("user").markdown(user_prompt)
+
+    # System instructions for the assistant
+    system_messages = [
+        {"role": "system", "content": "You are a helpful assistant named Flagence by FLAMEXD."},
+        {"role": "system", "content": "Respond in a friendly and approachable tone."},
+        {"role": "system", "content": "Provide clear and detailed explanations with light humor."},
+    ]
+
+    # Build the message list
+    messages = system_messages + st.session_state.current_chat
+
+    # Generate a response from the model
+    try:
+        response = client.chat.completions.create(
+            model="llama-3.1-8b-instant",
+            messages=messages
+        )
+        assistant_response = response.choices[0].message.content
+        st.session_state.current_chat.append({"role": "assistant", "content": assistant_response})
+        with st.chat_message("assistant"):
+            st.markdown(f"<div style='background-color:#f1f8e9; padding: 10px; border-radius: 8px;'>{assistant_response}</div>", unsafe_allow_html=True)
     except Exception as e:
-        st.error(f"Error fetching data: {e}")
-        return pd.DataFrame()
+        st.error(f"Error generating response: {e}")
 
-data = fetch_data()
 
-# Home Page
-if page == "Home":
-    st.header("Welcome to the Football Transfer Analytics Tool")
-    st.write("""
-    - Explore player transfers, league and club spending, emerging young talents, and more.  
-    - Use advanced tools like predictive analytics and data visualizations for insights.
-    - Select a feature from the sidebar to begin.
-    """)
+def apply_custom_styles():
+    """Apply custom styles for a polished and professional user experience."""
+    st.markdown("""
+        <style>
+            .sidebar .sidebar-content {
+                background-color: #f4f6f9;
+                padding-top: 20px;
+                border-right: 2px solid #dcdcdc;
+            }
+            .css-1lcbmhc {
+                color: #333 !important;
+                font-size: 18px;
+                font-weight: bold;
+            }
+            .css-1y4p8pa {
+                background-color: #007bff !important;
+                color: #fff !important;
+                border-radius: 5px;
+                font-size: 16px;
+                padding: 10px;
+            }
+            .css-1x8cf1d {
+                color: #444 !important;
+                font-size: 22px;
+                margin-bottom: 10px;
+            }
+            .streamlit-expanderHeader {
+                font-weight: bold;
+                color: #007bff;
+            }
+            .streamlit-expanderContent {
+                background-color: #f8f9fa;
+            }
+        </style>
+    """, unsafe_allow_html=True)
 
-# League Spending
-elif page == "League Spending":
-    st.header("💰 League Spending Analysis")
-    if not data.empty:
-        league_spending = data.groupby("league.name")["fee.amount"].sum().reset_index()
-        fig = px.bar(
-            league_spending, x="league.name", y="fee.amount",
-            color="league.name", title="Total Spending by League",
-            labels={"fee.amount": "Total Spending (€M)", "league.name": "League"}
-        )
-        st.plotly_chart(fig, use_container_width=True)
-    else:
-        st.warning("No data available.")
 
-# Player Search
-elif page == "Player Search":
-    st.header("🔎 Player Transfer Search")
-    player_name = st.text_input("Enter Player Name")
-    if player_name and not data.empty:
-        search_results = data[data['player.name'].str.contains(player_name, case=False, na=False)]
-        if not search_results.empty:
-            st.dataframe(search_results)
-        else:
-            st.warning("No results found for the given player.")
-    elif not player_name:
-        st.info("Enter a player's name to search.")
-    else:
-        st.warning("No data available.")
+def display_faq_section():
+    """Render a FAQ section for user guidance."""
+    with st.expander("FAQs", expanded=False):
+        st.markdown("""
+            <ul>
+                <li><strong>How do I start a new chat?</strong> Click the 'New Chat' button on the sidebar.</li>
+                <li><strong>What is Flagence?</strong> Flagence is an AI assistant built to help you with a variety of tasks.</li>
+                <li><strong>Can I customize Flagence?</strong> Yes, we will soon support additional customization options!</li>
+            </ul>
+        """, unsafe_allow_html=True)
 
-# Young Talent Tracker
-elif page == "Young Talent Tracker":
-    st.header("🌟 Top Young Talents")
-    if not data.empty:
-        young_players = data[data['player.age'] < 22].sort_values(by="fee.amount", ascending=False)
-        st.dataframe(young_players)
-    else:
-        st.warning("No data available.")
 
-# Top Transfers
-elif page == "Top Transfers":
-    st.header("📊 Top Transfers by Season")
-    if not data.empty:
-        season = st.selectbox("Select Season", data['season'].dropna().unique())
-        top_transfers = data[data['season'] == season].sort_values(by="fee.amount", ascending=False)
-        st.dataframe(top_transfers)
-    else:
-        st.warning("No data available.")
+def main():
+    """Main function to run the Streamlit app."""
+    # Streamlit page configuration
+    st.set_page_config(
+        page_title="Flagence Chat",
+        page_icon="Flagence Chat",
+        layout="centered",
+        initial_sidebar_state="expanded"
+    )
 
-# Transfer Comparison
-elif page == "Transfer Comparison":
-    st.header("⚔️ Compare Transfers")
-    if not data.empty:
-        player1 = st.selectbox("Select Player 1", data['player.name'].unique())
-        player2 = st.selectbox("Select Player 2", data['player.name'].unique())
-        if player1 and player2:
-            comparison = data[data['player.name'].isin([player1, player2])]
-            st.dataframe(comparison)
-    else:
-        st.warning("No data available.")
+    # Load configuration
+    config_data = load_config()
 
-# Transfer Trends
-elif page == "Transfer Trends":
-    st.header("📈 Transfer Trends")
-    if not data.empty:
-        spending_over_time = data.groupby("season")["fee.amount"].sum().reset_index()
-        fig = px.line(
-            spending_over_time, x="season", y="fee.amount",
-            title="Spending Trends Over Seasons",
-            labels={"fee.amount": "Total Spending (€M)", "season": "Season"}
-        )
-        st.plotly_chart(fig, use_container_width=True)
-    else:
-        st.warning("No data available.")
+    # Set API key in the environment
+    os.environ["GROQ_API_KEY"] = config_data["GROQ_API_KEY"]
 
-# Predict Future Fees
-elif page == "Predict Future Fees":
-    st.header("🔮 Predict Future Player Fees")
-    if not data.empty:
-        st.write("Using regression models to predict future transfer fees based on player attributes.")
-        # Prepare data
-        features = ["player.age", "league.name", "fee.amount"]
-        data = data.dropna(subset=features)
-        le = LabelEncoder()
-        data["league_encoded"] = le.fit_transform(data["league.name"])
-        
-        # Model
-        X = data[["player.age", "league_encoded"]]
-        y = data["fee.amount"]
-        model = LinearRegression()
-        model.fit(X, y)
-        
-        # Input
-        age = st.slider("Player Age", 16, 40, 25)
-        league = st.selectbox("League", le.classes_)
-        league_encoded = le.transform([league])[0]
-        
-        # Prediction
-        predicted_fee = model.predict([[age, league_encoded]])[0]
-        st.write(f"Predicted Transfer Fee: **€{predicted_fee:.2f}M**")
-    else:
-        st.warning("No data available.")
+    # Initialize Groq client
+    client = Groq()
 
-# Club Spending Breakdown
-elif page == "Club Spending Breakdown":
-    st.header("🏟️ Club Spending Breakdown")
-    if not data.empty:
-        club_spending = data.groupby("team.name")["fee.amount"].sum().reset_index()
-        club_spending = club_spending.sort_values(by="fee.amount", ascending=False).head(10)
-        fig = px.pie(club_spending, values="fee.amount", names="team.name", title="Top 10 Clubs by Spending")
-        st.plotly_chart(fig, use_container_width=True)
-    else:
-        st.warning("No data available.")
+    # Initialize session state variables
+    initialize_session_state()
 
-# Footer
-st.markdown("""
-    <div class='footer'>
-        Built with ❤️ by <b>DEV ALVEXD</b>. Empowering football insights.
-    </div>
-""", unsafe_allow_html=True)
+    # Display sidebar with chat history
+    display_sidebar()
+
+    # Render chat interface
+    render_chat_interface(client)
+
+    # Display FAQs and additional information
+    display_faq_section()
+
+    # Apply custom styles
+    apply_custom_styles()
+
+
+if __name__ == "__main__":
+    main()
