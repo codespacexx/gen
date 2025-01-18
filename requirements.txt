@@ -4,6 +4,7 @@ pandas
 matplotlib
 seaborn
 mplsoccer
+groq
 numpy 
 plotly 
 scikit-learn
