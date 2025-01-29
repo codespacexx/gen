@@ -1,11 +1,3 @@
-streamlit
-requests
-pandas
-matplotlib
-seaborn
-mplsoccer
-groq
-numpy 
-plotly 
-scikit-learn
-beautifulsoup4
+Flask
+Werkzeug
+flask_cors
