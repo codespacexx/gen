@@ -1,7 +1,10 @@
-// server.js
-import fetch from 'node-fetch'; // Use import syntax
+// server.js (Node.js/Express)
 import express from 'express';
+import fetch from 'node-fetch';
 import cors from 'cors';
+import rateLimit from 'express-rate-limit';
+import path from 'path'; // Import the path module
+
 const app = express();
 const port = process.env.PORT || 3000;
 
@@ -10,7 +13,7 @@ const allowedOrigins = ['http://localhost:7700']; // Replace with your website's
 
 app.use(cors({
     origin: function (origin, callback) {
-        if (!origin || allowedOrigins.includes(origin)) { // Allow requests without origin (like Postman)
+        if (!origin || allowedOrigins.includes(origin)) {
             callback(null, true)
         } else {
             callback(new Error('Not allowed by CORS'))
@@ -18,13 +21,19 @@ app.use(cors({
     }
 }));
 
+const apiLimiter = rateLimit({
+    windowMs: 1000, // 1 second window
+    max: 1, // Limit each IP to 1 requests per second (adjust as needed)
+    message: "Too many requests, please try again later."
+});
 
+app.use('/download', apiLimiter);
 
-const rapidApiKey = process.env.RAPIDAPI_KEY; // Get from environment variables
+const rapidApiKey = process.env.RAPIDAPI_KEY;
 
 if (!rapidApiKey) {
     console.error("RAPIDAPI_KEY environment variable is NOT set!");
-    process.exit(1); // Exit if the key is missing
+    process.exit(1);
 }
 
 app.get('/download', async (req, res) => {
@@ -71,15 +80,19 @@ app.get('/download', async (req, res) => {
 
         const contentType = videoResponse.headers.get('Content-Type');
         const contentLength = videoResponse.headers.get('Content-Length');
-        const contentDisposition = videoResponse.headers.get('Content-Disposition');
-        let filename = 'video.mp4';
+        let filename = 'video.mp4'; // Default filename
 
+        const contentDisposition = videoResponse.headers.get('Content-Disposition');
         if (contentDisposition) {
-            const filenameMatch = contentDisposition.match(/filename="([^"]+)"/);
-            if (filenameMatch && filenameMatch[1]) {
-                filename = filenameMatch[1];
-            }
+          const filenameMatch = contentDisposition.match(/filename="([^"]+)"/);
+          if (filenameMatch && filenameMatch[1]) {
+            filename = filenameMatch[1];
+          }
         }
+
+        console.log("Content-Type:", contentType);
+        console.log("Content-Length:", contentLength);
+        console.log("Filename:", filename);
 
         res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
         res.setHeader('Content-Type', contentType);
@@ -87,10 +100,13 @@ app.get('/download', async (req, res) => {
             res.setHeader('Content-Length', contentLength);
         }
 
-        videoResponse.body.pipe(res);
+        videoResponse.body.pipe(res).on('error', (err) => {
+            console.error("Streaming error:", err);
+            res.status(500).send("Error streaming video.");
+        });
 
     } catch (error) {
-        console.error("Server Error:", error);
+        console.error("Error in /download route:", error);
         res.status(500).send('An error occurred on the server.');
     }
 });
