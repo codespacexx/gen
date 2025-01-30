@@ -1,14 +1,30 @@
+// server.js
 const express = require('express');
 const fetch = require('node-fetch');
+const cors = require('cors');
 const app = express();
 const port = process.env.PORT || 3000;
 
-// *** SECURELY get the API key from environment variables ***
+// CORS Configuration (Important!)
+const allowedOrigins = ['http://localhost:7700']; // Replace with your website's origin(s) for production
+
+app.use(cors({
+    origin: function (origin, callback) {
+        if (!origin || allowedOrigins.includes(origin)) { // Allow requests without origin (like Postman)
+            callback(null, true)
+        } else {
+            callback(new Error('Not allowed by CORS'))
+        }
+    }
+}));
+
+
+
 const rapidApiKey = process.env.RAPIDAPI_KEY; // Get from environment variables
 
 if (!rapidApiKey) {
     console.error("RAPIDAPI_KEY environment variable is NOT set!");
-    process.exit(1); // Exit the process if the key is missing
+    process.exit(1); // Exit if the key is missing
 }
 
 app.get('/download', async (req, res) => {
@@ -26,7 +42,7 @@ app.get('/download', async (req, res) => {
         const apiResponse = await fetch(url, {
             method: 'GET',
             headers: {
-                'x-rapidapi-key': rapidApiKey, // Use the API key from env variables
+                'x-rapidapi-key': rapidApiKey,
                 'x-rapidapi-host': 'facebook-reel-and-video-downloader.p.rapidapi.com'
             }
         });
