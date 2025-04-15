@@ -1,5 +1,25 @@
-streamlit
-transformers
-torch
-accelerate
-bitsandbytes
+# Core Packages
+fastapi==0.95.2
+uvicorn==0.22.0
+python-multipart==0.0.6
+
+# Web Scraping
+httpx==0.24.1
+beautifulsoup4==4.12.2
+lxml==4.9.3
+
+# Data Processing
+pydantic==1.10.7
+python-dateutil==2.8.2
+
+# Database (Optional)
+sqlalchemy==2.0.15
+psycopg2-binary==2.9.6
+
+# Production
+gunicorn==20.1.0
+uvloop==0.17.0
+
+# CORS
+python-jose==3.3.0
+passlib==1.7.4
